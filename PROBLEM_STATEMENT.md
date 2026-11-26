@@ -1,6 +1,12 @@
-# CareRoute
+## Problem
+Triage one bank customer message → redact PII → classify → route.
+The classifier suggests, the policy layer decides, uncertain → human review.
+User: bank triage staff.
 
-Triage one bank customer message → redact PII → classify → route. Model suggests, policy layer decides, uncertain → human. User: bank triage staff.
+## Iteration 1 scope
+Rules-based classifier only. No LLM, no network, no credentials.
+The classifier sits behind a single interface so an LLM can be added in iteration 2
+and compared against this baseline using the same golden set and eval gate.
 
 ## Scope
 
@@ -14,9 +20,6 @@ Triage one bank customer message → redact PII → classify → route. Model su
 
 **Out:** real data, auth/SSO, real queues, case mgmt, multilingual, fine-tuning, attachments, multi-turn, dashboards.
 
-## Constraints
-
-No creds / paid services / internet at runtime · synthetic data only · 3h timebox · ≤19 files
 
 ## Success criteria
 
