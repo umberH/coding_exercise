@@ -25,9 +25,12 @@ deliberately out of scope.
   decide → audit.
 - `careroute/cli.py` — the `careroute` command: `careroute triage "<message>"` for one message
   in, one JSON result out, and `careroute eval` as the recall eval gate (see below).
+- `careroute/held_out_eval_set.py` — a second labelled set, written to avoid the literal
+  keywords `rules.py`'s patterns key on, so recall can be measured on genuinely novel phrasing
+  rather than phrasing shaped like the patterns themselves.
 - `.github/workflows/ci.yml` — lint, type-check, unit tests, and the eval gate on every push.
-- `tests/golden_set.py` — the shared golden-set fixture the test suite (and the eval gate) are
-  driven from.
+- `tests/golden_set.py` — the shared golden-set fixture the test suite (and the gating half of
+  the eval gate) are driven from.
 
 **Cut from this iteration, deliberately (see [DESIGN.md](DESIGN.md)):**
 
@@ -41,10 +44,27 @@ deliberately out of scope.
   models, no test client). The pipeline the API would have called (`careroute/pipeline.py`)
   is already built and tested, so adding a thin FastAPI wrapper around it later is a small,
   isolated follow-up, not a redesign.
-- **Separate held-out eval set.** `PROBLEM_STATEMENT.md` asks for recall measured on a labelled
-  set distinct from the regression-only `tests/golden_set.py`. `careroute eval` reuses
-  `tests/golden_set.py` instead — building a second labelled set didn't fit the time-box. This
-  is flagged in `careroute/cli.py`'s docstring, not silently presented as the real held-out set.
+
+## A finding worth reading: golden-set recall versus held-out recall
+
+`careroute eval` reports two sections. On `tests/golden_set.py` (the regression suite also used
+to build `rules.py`'s patterns), the `rules` provider hits **100% recall** on hardship,
+vulnerability, and scam. On `careroute/held_out_eval_set.py` — 9 cases describing the same kinds
+of situations in different words, with every literal trigger word (`hardship`, `struggl*`,
+`vulnerab*`, `scam*`, `fraud*`, `elderly`, `confus*`, `otp`, ...) deliberately avoided — recall
+drops to **hardship 0%, vulnerability 0%, scam 33%.**
+
+That gap is real, not a harness bug: `rules.py` is a pure keyword/regex matcher, so of course it
+only catches phrasing it has a pattern for. The golden-set number was never a generalization
+claim — measuring recall against the same data style used to build the patterns was always
+going to look good. The held-out number is the honest one, and it's exactly the gap
+`PROBLEM_STATEMENT.md`'s iteration-2 LLM provider exists to close.
+
+`careroute eval` reports the held-out numbers but does **not** gate CI on them (`WARN`, not
+`FAIL`) — failing the build on a known, documented, pre-LLM baseline limitation would be noise,
+not signal. The golden-set section still gates CI, since that's a real regression check on
+behavior `rules.py` is supposed to have. See `careroute/held_out_eval_set.py`'s docstring and
+`careroute/cli.py`'s module docstring for the same reasoning in-code.
 
 ## Try it
 
@@ -53,9 +73,10 @@ careroute triage "Someone rang pretending to be my bank and got my one-time code
 careroute eval
 ```
 
-`eval` reports recall per risk flag (hardship/vulnerability/scam) against the golden set and
-exits non-zero if any drops below the 0.90 target `PROBLEM_STATEMENT.md` sets — this is the
-command `.github/workflows/ci.yml` runs as the CI gate.
+`eval` reports recall per risk flag (hardship/vulnerability/scam) on both sets described above.
+The golden-set section exits non-zero if recall drops below the 0.90 target
+`PROBLEM_STATEMENT.md` sets — this is the command `.github/workflows/ci.yml` runs as the CI gate.
+The held-out section is informational only (see above).
 
 ## Setup
 
@@ -109,11 +130,13 @@ careroute/
   audit.py                # build_audit_record(AuditInputs) -> AuditRecord
   pipeline.py             # triage(text) -> TriageResult: redact -> classify -> decide -> audit
   cli.py                  # `careroute triage` / `careroute eval` entry points
+  held_out_eval_set.py     # HELD_OUT_CASES: genuinely novel-phrasing recall eval cases
 tests/
   golden_set.py            # shared GOLDEN_CASES fixture, not a test module itself
   test_schema.py
   test_rules_provider.py
   test_golden_set.py       # structural guards on the golden-set fixture
+  test_held_out_eval_set.py # structural guards on the held-out eval set
   test_redaction.py
   test_policy.py
   test_audit.py

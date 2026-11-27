@@ -3,28 +3,30 @@
 Two subcommands:
   triage  -- one message in (arg, or stdin if omitted), one TriageResult
              out as JSON.
-  eval    -- run tests/golden_set.py's labelled cases through the rules
-             provider and report recall per risk flag; exits 1 if
-             hardship/vulnerability/scam recall drops below the 0.90 target
-             PROBLEM_STATEMENT.md sets. This is what a CI eval gate invokes.
+  eval    -- report recall per risk flag on two sets and gate CI on one of
+             them (see below). This is what a CI eval gate invokes.
 
-Scope note: PROBLEM_STATEMENT.md asks for recall measured on a held-out
-labelled set, distinct from tests/golden_set.py's regression-only cases.
-Building a second, separate labelled set was cut for this exercise's
-time-box - `eval` reuses tests/golden_set.py instead, and that's flagged
-here and in README.md rather than silently presented as the held-out set.
-
-A case already documented as a known limitation for a provider
-(`GoldenCase.xfail_providers`) is excluded from that provider's recall
-count, the same way the unit test suite already xfails it, rather than
-having the gate permanently fail on a gap that's already been accepted.
+`eval` reports two sections:
+  - golden set (regression, gating) -- tests/golden_set.py's cases, minus
+    any case already documented as a known limitation for this provider
+    (`GoldenCase.xfail_providers`), the same way the unit test suite
+    already xfails it. This gates CI: exit 1 if recall drops below 0.90.
+  - held-out set (generalization, informational only) --
+    careroute/held_out_eval_set.py's cases, written to avoid every literal
+    trigger word the `rules` patterns key on. This does NOT gate CI: a
+    pure pattern-matcher is not expected to generalize to phrasing nobody
+    wrote a pattern for, and that gap is the documented motivation for an
+    iteration-2 LLM provider, not a defect to hide by gating on it. See
+    README.md and DESIGN.md for the measured numbers and the reasoning.
 """
 
 import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
+from careroute.held_out_eval_set import HELD_OUT_CASES
 from careroute.pipeline import PROVIDER_NAME, triage
 
 _RISK_FLAG_NAMES = ("hardship", "vulnerability", "scam")
@@ -49,37 +51,58 @@ def _run_triage(message: str) -> int:
     return 0
 
 
-def _recall_per_risk_flag() -> dict[str, tuple[int, int]]:
+def _load_golden_cases() -> list[Any]:
     _add_tests_dir_to_path()
     from golden_set import GOLDEN_CASES  # type: ignore[import-not-found]  # tests/ fixture, path set up above
 
-    recall = {}
-    for flag_name in _RISK_FLAG_NAMES:
-        positives = [
-            case
-            for case in GOLDEN_CASES
-            if getattr(case, f"expected_{flag_name}") and PROVIDER_NAME not in case.xfail_providers
-        ]
-        hits = sum(
-            1
-            for case in positives
-            if getattr(triage(case.text).classification.risk_flags, flag_name)
+    return [case for case in GOLDEN_CASES if PROVIDER_NAME not in case.xfail_providers]
+
+
+def _recall(cases: list[Any], flag_name: str) -> tuple[int, int]:
+    positives = [case for case in cases if getattr(case, f"expected_{flag_name}")]
+    hits = sum(
+        1
+        for case in positives
+        if getattr(triage(case.text).classification.risk_flags, flag_name)
+    )
+    return hits, len(positives)
+
+
+def _recall_report(cases: list[Any]) -> dict[str, tuple[int, int]]:
+    return {flag_name: _recall(cases, flag_name) for flag_name in _RISK_FLAG_NAMES}
+
+
+def _print_section(label: str, report: dict[str, tuple[int, int]], gate: bool) -> bool:
+    print(label)
+    any_below_target = False
+    for flag_name, (hits, total) in report.items():
+        rate = hits / total if total else 1.0
+        below_target = rate < _RECALL_THRESHOLD
+        any_below_target = any_below_target or below_target
+        status = "FAIL" if (below_target and gate) else "WARN" if below_target else "PASS"
+        print(
+            f"  {flag_name}: recall={rate:.2f} ({hits}/{total}) "
+            f"{status} (target>={_RECALL_THRESHOLD})"
         )
-        recall[flag_name] = (hits, len(positives))
-    return recall
+    return any_below_target
 
 
 def _run_eval() -> int:
-    failed = False
-    for flag_name, (hits, total) in _recall_per_risk_flag().items():
-        rate = hits / total if total else 1.0
-        status = "PASS" if rate >= _RECALL_THRESHOLD else "FAIL"
-        failed = failed or rate < _RECALL_THRESHOLD
+    golden_failed = _print_section(
+        "golden set (regression, gating):", _recall_report(_load_golden_cases()), gate=True
+    )
+    print()
+    held_out_below_target = _print_section(
+        "held-out set (generalization, informational only - does not gate CI):",
+        _recall_report(list(HELD_OUT_CASES)),
+        gate=False,
+    )
+    if held_out_below_target:
         print(
-            f"{flag_name}: recall={rate:.2f} ({hits}/{total}) "
-            f"{status} (target>={_RECALL_THRESHOLD})"
+            "  note: rules is a pattern-matcher and isn't expected to generalize to "
+            "phrasing it has no pattern for - see README.md. Does not fail the build."
         )
-    return 1 if failed else 0
+    return 1 if golden_failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:

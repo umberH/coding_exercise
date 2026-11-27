@@ -44,3 +44,19 @@ def test_triage_routes_a_low_confidence_non_risk_message_to_human_review() -> No
     result = triage("asdkjhasdkjh qweoiuqwe random unclassifiable text")
 
     assert result.route_decision.route is Route.HUMAN_REVIEW
+
+
+def test_triage_handles_empty_message_without_raising() -> None:
+    result = triage("")
+
+    assert result.classification.category.value == "other"
+    assert result.route_decision.route is Route.HUMAN_REVIEW
+
+
+def test_triage_handles_a_very_long_message_without_raising() -> None:
+    message = ("filler " * 2000) + "I'm struggling to pay my rent this month."
+
+    result = triage(message)
+
+    assert result.classification.risk_flags.hardship is True
+    assert result.route_decision.route is Route.SPECIALIST_QUEUE
