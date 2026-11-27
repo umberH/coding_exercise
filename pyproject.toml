@@ -13,6 +13,9 @@ dev = [
     "mypy>=1.13,<2",
 ]
 
+[project.scripts]
+careroute = "careroute.cli:main"
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
