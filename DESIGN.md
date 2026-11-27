@@ -35,7 +35,13 @@ going through policy.
   - `llm` (planned, iteration 2) — same interface, behind a schema validation step: any response
     that fails to parse, is missing/extra fields, has an out-of-enum category, or an
     out-of-range confidence falls back to the `rules` result rather than reaching policy
-    un-validated. Compared against `rules` on the same golden set rather than replacing it outright.
+    un-validated. The same fallback applies if the call itself errors or times out — in every
+    case, policy always receives a valid `ClassificationResult` (the LLM's or the `rules`
+    fallback), and routing proceeds normally from there. There is no path where a classification
+    failure routes directly to human review bypassing policy; a classification failure instead
+    becomes a `rules`-provider result, which the usual confidence/risk-flag logic may or may not
+    send to human review. Compared against `rules` on the same golden set rather than replacing
+    it outright.
 
 - **Policy layer (planned)** — a pure function, classification in, route out: no I/O, no model
   call, no clock, no randomness. Routing table:
