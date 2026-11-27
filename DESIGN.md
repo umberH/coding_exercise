@@ -14,6 +14,47 @@ classification is allowed to be probabilistic, and it's sandwiched between the t
 downstream of redaction ever sees raw PII, and nothing the model says can reach a route except by
 going through policy.
 
+Solid edges/boxes are built; dashed edges/boxes are the iteration-2 LLM path described below. The
+schema-validity check only applies to the LLM path — the `rules` provider is deterministic and
+always produces a valid `ClassificationResult`, so it has nothing to validate. On an invalid
+response, a provider error, or a timeout, the LLM path falls back to the `rules` result rather
+than routing anywhere directly — policy always runs on a valid `ClassificationResult`, exactly as
+described in the `llm` provider bullet below.
+
+```mermaid
+flowchart TD
+    CLI["CLI: single message<br/>(built)"]
+    RED["PII redaction: card · BSB/account · TFN · phone · email<br/>(built)"]
+    CLI --> RED
+
+    subgraph ZONE["Redacted zone: no raw PII past this line, including logs"]
+        CLS{"Classifier provider"}
+        RULES["Rules provider<br/>(built)"]
+        LLM["LLM provider<br/>(planned, iteration 2)"]
+        SCHEMA{"Schema valid?<br/>(planned, iteration 2)"}
+        POLICY{"Policy layer<br/>(built)"}
+        SQ["Specialist queue"]
+        HR["Human review"]
+        GQ["General queue"]
+        AUDIT[("Audit record (built)<br/>input hash of redacted text · classification ·<br/>route · reason · provider version · policy version")]
+
+        CLS -->|"rules, built"| RULES
+        CLS -.->|"LLM, planned"| LLM
+        LLM -.-> SCHEMA
+        SCHEMA -.->|"invalid, error, or timeout"| RULES
+        SCHEMA -.->|valid| POLICY
+        RULES --> POLICY
+        POLICY -->|"1. any risk flag"| SQ
+        POLICY -->|"2. low confidence"| HR
+        POLICY -->|"3. otherwise"| GQ
+        SQ --> AUDIT
+        HR --> AUDIT
+        GQ --> AUDIT
+    end
+
+    RED -->|redacted text only| CLS
+```
+
 ## Components (full design)
 
 - **Schema (`careroute/schema.py`)** — the `ClassificationResult` contract (`Category`,
