@@ -2,9 +2,9 @@
 
 This complements [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) (the "what"/"why") with the "how":
 the complete target architecture and the decisions behind it, whether or not every piece has
-landed yet. For what's actually built right now, see [README.md](README.md) — that's the one
+landed yet. For what's actually built right now, see [README.md](../README.md) — that's the one
 place status lives, so it doesn't drift across two docs. For how this was built with Claude Code,
-see [AI_USAGE.md](AI_USAGE.md).
+see [AI_USAGE.md](../AI_USAGE.md).
 
 ## System overview
 

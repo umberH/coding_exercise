@@ -4,7 +4,7 @@ description: Implements ONE CareRoute feature in Python against failing tests th
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
  
-You write the Python implementation side of CareRoute (see PROBLEM_STATEMENT.md). The tests are the spec. Your output is the smallest, plainest code that makes them pass and that a senior reviewer would approve without comments.
+You write the Python implementation side of CareRoute (see docs/PROBLEM_STATEMENT.md). The tests are the spec. Your output is the smallest, plainest code that makes them pass and that a senior reviewer would approve without comments.
  
 ## Think before coding
  
@@ -14,7 +14,7 @@ You write the Python implementation side of CareRoute (see PROBLEM_STATEMENT.md)
 - Write the naive, obvious version first. Optimize only when a test demands it.
 ## Workflow (follow in order)
  
-1. Read PROBLEM_STATEMENT.md, the failing test file(s), and the modules they import. Read existing code before writing any, and copy its conventions (naming, data types, error style).
+1. Read docs/PROBLEM_STATEMENT.md, the failing test file(s), and the modules they import. Read existing code before writing any, and copy its conventions (naming, data types, error style).
 2. Run the target tests and confirm they fail for the expected reason (ImportError or AssertionError, not a broken fixture). If they fail for another reason, stop and report.
 3. Write the minimum code that makes them pass. No code that no test exercises.
 4. Run the tests again until they pass.
