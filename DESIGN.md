@@ -93,6 +93,16 @@ going through policy.
 
 ## Key design decisions
 
+**Golden-set recall and held-out recall are reported separately, and only one gates CI.**
+`careroute/held_out_eval_set.py` holds 9 cases describing the same hardship/vulnerability/scam
+situations as the golden set, phrased to avoid every literal trigger word `rules.py`'s patterns
+key on. Measured recall on it is far below the golden set's (0%/0%/33% vs. 100%/100%/100%) -
+expected for a pure pattern-matcher, and exactly the gap an iteration-2 LLM provider exists to
+close. `careroute eval` reports both but only gates the build on the golden-set section
+(`WARN`, not `FAIL`, for held-out misses) - failing CI on a known, already-documented baseline
+limitation would be noise, not a real regression signal. See README.md's "golden-set recall
+versus held-out recall" section for the full numbers and reasoning.
+
 **Schema as the only contract.** `ClassificationResult` is the single seam between "probabilistic"
 (providers) and "deterministic" (policy). This is what lets iteration 2 swap in an LLM provider
 without touching policy or API code, and what lets the eval gate compare providers head to
