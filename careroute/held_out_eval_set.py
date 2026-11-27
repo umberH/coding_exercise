@@ -13,7 +13,7 @@ trigger word `careroute/providers/rules.py`'s patterns key on (no
 "hardship", "struggl*", "vulnerab*", "scam*", "fraud*", "elderly",
 "confus*", "otp", ...) while still describing a real customer situation a
 human reader would unambiguously flag. Measured recall here is far lower
-than on the golden set - see README.md and DESIGN.md for why that's a
+than on the golden set - see README.md and docs/DESIGN.md for why that's a
 genuine finding about the `rules` provider's limits, not a bug in this set,
 and why `careroute eval` reports it as informational rather than gating CI
 on it.
