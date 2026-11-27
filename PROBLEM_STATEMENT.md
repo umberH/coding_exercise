@@ -10,7 +10,7 @@ and compared against this baseline using the same golden set and eval gate.
 
 ## Scope
 
-- 1 message in → 1 structured result out (API + UI + batch eval CLI)
+- 1 message in → 1 structured result out (API + batch eval CLI)
 - Redact PII (card, BSB/account, TFN, phone, email) before any model call or log
 - Classify: 7 categories, 3 risk flags, urgency, confidence
 - Policy: any risk flag → specialist queue; low confidence → human review
@@ -18,7 +18,8 @@ and compared against this baseline using the same golden set and eval gate.
 - Synthetic golden set + eval gate in CI
 - Audit record per decision: input hash, provider version, policy version, reason
 
-**Out:** real data, auth/SSO, real queues, case mgmt, multilingual, fine-tuning, attachments, multi-turn, dashboards.
+**Out:** real data, auth/SSO, real queues, case mgmt, multilingual, fine-tuning, attachments, multi-turn, dashboards,
+end-user UI/reviewer console (API-first — consumers are the bank's triage tools, not end users).
 
 
 ## Success criteria
