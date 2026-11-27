@@ -3,7 +3,7 @@
 Triage one bank customer message -> redact PII -> classify -> route.
 The classifier suggests, the policy layer decides, and anything uncertain goes to human review.
 
-See [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) for full scope, success criteria, and what's
+See [PROBLEM_STATEMENT.md](docs/PROBLEM_STATEMENT.md) for full scope, success criteria, and what's
 deliberately out of scope.
 
 ## Status
@@ -32,7 +32,7 @@ deliberately out of scope.
 - `tests/golden_set.py` — the shared golden-set fixture the test suite (and the gating half of
   the eval gate) are driven from.
 
-**Cut from this iteration, deliberately (see [DESIGN.md](DESIGN.md)):**
+**Cut from this iteration, deliberately (see [DESIGN.md](docs/DESIGN.md)):**
 
 - **LLM provider.** `PROBLEM_STATEMENT.md` scopes iteration 1 as rules-only from the start —
   this was never pulled forward, not a new cut. The `rules` provider sits behind the same

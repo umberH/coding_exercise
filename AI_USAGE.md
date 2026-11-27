@@ -1,7 +1,7 @@
 # CareRoute — AI-Assisted Development
 
 This documents how Claude Code was used to build CareRoute. For the architecture and design
-decisions themselves, see [DESIGN.md](DESIGN.md).
+decisions themselves, see [DESIGN.md](docs/DESIGN.md).
 
 ## Why a constrained, multi-agent loop
 
@@ -14,9 +14,10 @@ of "describe the feature and let the agent figure it out." Three things drove th
 - PII handling has zero tolerance for leaks — a single missed redaction path is a fail, so the
   checks for it needed to be explicit and repeated on every change, not trusted to "the model
   will remember."
-- An unconstrained agent tends to over-build (auth, plugin frameworks, dashboards) well past a
-  3-hour exercise's scope — the guardrails below exist to keep it inside `PROBLEM_STATEMENT.md`'s
-  explicit "Out of Scope" list.
+- Dependency choice needed the same tight leash — no new runtime dependencies, no network calls
+  at runtime, stdlib or whatever `pyproject.toml` already declares (just `pydantic`) only. Left
+  unconstrained, an agent routinely reaches for a new library to solve a problem the stdlib
+  already handles, which is its own kind of scope creep.
 
 ## The four-agent loop
 

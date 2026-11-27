@@ -17,7 +17,7 @@ Two subcommands:
     pure pattern-matcher is not expected to generalize to phrasing nobody
     wrote a pattern for, and that gap is the documented motivation for an
     iteration-2 LLM provider, not a defect to hide by gating on it. See
-    README.md and DESIGN.md for the measured numbers and the reasoning.
+    README.md and docs/DESIGN.md for the measured numbers and the reasoning.
 """
 
 import argparse
