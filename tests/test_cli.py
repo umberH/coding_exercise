@@ -32,3 +32,29 @@ def test_eval_command_passes_and_reports_recall_per_risk_flag(capsys) -> None:
     assert exit_code == 0
     for flag_name in ("hardship", "vulnerability", "scam"):
         assert flag_name in output
+
+
+def test_eval_command_reports_held_out_set_as_informational_not_gating(capsys) -> None:
+    """The held-out set (careroute/held_out_eval_set.py) currently measures
+    well below the 0.90 target for this pure pattern-matching provider -
+    that's the documented finding motivating an iteration-2 LLM provider,
+    not a build failure, so it must be reported (WARN) without affecting
+    the exit code."""
+    exit_code = main(["eval"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "held-out set" in output
+    assert "WARN" in output
+
+
+def test_eval_command_exits_1_when_golden_set_recall_misses_threshold(monkeypatch, capsys) -> None:
+    import careroute.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_RECALL_THRESHOLD", 1.01)
+
+    exit_code = main(["eval"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "FAIL" in output
