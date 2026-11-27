@@ -43,39 +43,53 @@ going through policy.
     send to human review. Compared against `rules` on the same golden set rather than replacing
     it outright.
 
-- **Policy layer (planned)** — a pure function, classification in, route out: no I/O, no model
-  call, no clock, no randomness. Routing table:
+- **Policy layer (built, `careroute/policy.py`)** — a pure function, classification in, route
+  out: no I/O, no model call, no clock, no randomness. Routing table:
 
   | Condition | Route |
   | --- | --- |
   | Any risk flag true (hardship / vulnerability / scam) | Specialist queue |
-  | No risk flag, confidence below threshold | Human review |
+  | No risk flag, confidence below threshold (0.7) | Human review |
   | No risk flag, confidence at/above threshold | General queue |
 
   Risk flags take precedence over confidence — a low-confidence risk flag still routes to the
-  specialist queue, not human review, because the risk signal itself is the stronger prior.
+  specialist queue, not human review, because the risk signal itself is the stronger prior. The
+  0.7 threshold sits strictly between the `rules` provider's two confidence values (0.9 for a
+  recognized category, 0.4 for `OTHER`), so every `OTHER` result lands in human review and every
+  recognized category clears straight to the general queue unless a risk flag overrides it.
 
-- **Audit record (planned)** — one per decision: `input_hash` (hash of the *redacted* text),
-  `provider_name` + `provider_version`, `policy_version`, the classification fields, the route,
-  a short reason string, and an injected (not wall-clock) timestamp. No raw text field, ever —
-  it's built from redacted text only, so there's no path for PII to reach it.
+- **Audit record (built, `careroute/audit.py`)** — one per decision: `input_hash` (SHA-256 of
+  the *redacted* text), `provider_name` + `provider_version`, `policy_version`, the full
+  classification, the route, and a reason string. `build_audit_record` takes a single
+  `AuditInputs` bundle (to stay inside this project's 3-argument function-signature limit) built
+  only from already-redacted text — there is no parameter on either type that accepts raw text,
+  so there's no path for PII to reach it by construction. No wall-clock timestamp: a pure
+  function can't call one, and injecting one would need a clock dependency this iteration
+  doesn't have a use for yet.
 
-- **Entry points (planned)** — API-only. The consumers are the bank's triage tools, not end
-  users, so there's no UI entry point; a reviewer console (queue view, human override with an
-  audit trail) is a later iteration, not this one. A single FastAPI service:
-  - `POST /v1/triage` — `{"message": "..."}` in, the `ClassificationResult` fields plus the
-    routing decision and reason out. The `/v1/` prefix is there because this is a contract other
-    services will call, not a one-off script.
-  - `GET /health` — liveness.
-  - `GET /version` — app version and `provider_version`/`policy_version`, so an audit record can
-    be cross-checked against what was actually running.
-  - Errors are clean JSON, never a stack trace: 422 for empty/invalid input, 413 for a message
-    over the length limit.
-  - FastAPI's generated `/docs` page covers the "let a reviewer try it interactively" need a UI
-    would otherwise serve.
-  - A batch eval CLI that runs the held-out labelled set through a provider and reports recall
-    per risk flag — this is the "eval gate" PROBLEM_STATEMENT.md's CI check refers to, failing
-    the build if hardship/vulnerability/scam recall drops below 0.90.
+- **Pipeline (built, `careroute/pipeline.py`)** — the single `triage(text) -> TriageResult`
+  function that sequences the four stages above in order and is what every entry point (CLI now,
+  an HTTP API later) calls. This is the seam that makes "redact before classify before policy
+  before audit" an invariant of the code path rather than a convention callers have to remember.
+
+- **Entry points — CLI built now, HTTP API deferred.** The original design (below) called for a
+  FastAPI service as the only entry point, with no UI. Given this exercise's time-box, a CLI
+  (`careroute/cli.py`) was built instead of the API first — same "one message in, one structured
+  result out" contract, calling the same `pipeline.triage`, at much lower build/test cost. This
+  is a sequencing decision, not a reversal: the API remains the target for a non-time-boxed
+  iteration 2, and because `pipeline.py` already exists and is tested, adding it is wrapping
+  `triage()` in request/response handling, not rebuilding the triage logic.
+  - `careroute triage "<message>"` (or stdin) — one message in, the `TriageResult` (classification,
+    route, reason, and audit record) out as JSON.
+  - `careroute eval` — runs `tests/golden_set.py`'s cases through the pipeline and reports recall
+    per risk flag, excluding cases already marked `xfail_providers=("rules",)` (the same
+    known-limitation exclusion the unit tests already apply); exits 1 if hardship/vulnerability/
+    scam recall drops below 0.90. This is the "eval gate" PROBLEM_STATEMENT.md's CI check refers
+    to, and what `.github/workflows/ci.yml` runs on every push.
+  - **Still planned, not built:** the FastAPI service itself (`POST /v1/triage`, `GET /health`,
+    `GET /version`, JSON error responses, FastAPI's `/docs` page standing in for "try it
+    interactively"). Design intent unchanged from the original notes below; only the build order
+    changed.
 
 ## Key design decisions
 
